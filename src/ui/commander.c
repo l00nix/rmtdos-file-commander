@@ -296,9 +296,9 @@ static void draw_commander(struct AppState *app) {
   draw_local_panel(app, right);
   draw_status_bar(app);
 
+  wnoutrefresh(stdscr);
   wnoutrefresh(left);
   wnoutrefresh(right);
-  wnoutrefresh(stdscr);
   doupdate();
 
   delwin(left);
