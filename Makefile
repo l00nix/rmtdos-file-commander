@@ -15,6 +15,7 @@ SRC := \
 	src/net/file_transfer.c \
 	src/net/hostlist.c \
 	src/net/raw_socket.c \
+	src/net/remote_dir.c \
 	src/ui/commander.c
 
 OBJ := $(SRC:.c=.o)
@@ -34,4 +35,3 @@ clean:
 
 format:
 	clang-format -i $(SRC) src/common/*.h src/net/*.h src/ui/*.h
-

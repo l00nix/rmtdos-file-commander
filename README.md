@@ -13,9 +13,9 @@ The first build is intentionally small and protocol-aware:
 5. Treat the right pane as the local Linux side.
 6. Copy files with the existing rmtdos-cga-web `--put` and `--get` packet flow.
 
-Remote directory browsing depends on the next TSR protocol extension. Until that
-lands, the remote pane shows the selected DOS host and current planned DOS path,
-while transfers use explicit remote filenames.
+Remote directory browsing requires a `cgaweb.com` build that includes the
+`V1_DIR_LIST_*` protocol extension. Older TSR builds still work for prompted
+single-file transfers, but the remote pane cannot list directories.
 
 ## Current Status
 
@@ -25,9 +25,9 @@ while transfers use explicit remote filenames.
 - Linux to DOS upload: implemented with existing `V1_FILE_PUT_*` packets.
 - DOS to Linux download: implemented by prompting for a remote filename and using
   existing `V1_FILE_GET_*` packets.
-- Remote DOS directory listing: protocol design stubbed, TSR support still
-  needed.
-- Remote chdir/path handling: protocol design stubbed, TSR support still needed.
+- Remote DOS directory listing: implemented with the matching updated
+  `cgaweb.com` TSR.
+- Remote chdir/path handling: implemented client-side for directory browsing.
 - Remote mkdir/delete/rename: documented future work.
 
 ## Build
@@ -62,10 +62,11 @@ sudo ./out/rmtdos-file-commander -i enp2s0 -e 80ab
 - `0`-`9`: select a DOS host from the startup selector.
 - `Tab`: switch between remote and local pane focus.
 - `Up` / `Down`: move selection in the local pane.
-- `Enter`: enter the selected local directory.
+- `Enter`: enter the selected directory in the focused pane.
 - `u`: upload the selected local file to the DOS current/planned directory.
-- `d`: download a prompted DOS filename into the current local directory.
-- `r`: refresh local directory listing.
+- `d`: download the selected or prompted DOS filename into the current local
+  directory.
+- `r`: refresh the focused directory listing.
 - `q`, `Esc`, `Ctrl-]`: quit.
 
 ## Relationship to rmtdos-cga-web
@@ -77,4 +78,3 @@ that foundation.
 
 See [docs/protocol-roadmap.md](docs/protocol-roadmap.md) for the proposed next
 TSR protocol features.
-
