@@ -553,19 +553,53 @@ static void ui_reset(void) {
 }
 
 static int prompt_text(const char *label, char *buf, size_t len) {
+  char *input;
+  char *original;
+  int label_col;
+  int rc;
+
+  input = calloc(len, 1);
+  original = calloc(len, 1);
+  if (!input || !original) {
+    free(input);
+    free(original);
+    return -1;
+  }
+
+  snprintf(original, len, "%s", buf);
+
+  nodelay(stdscr, FALSE);
   echo();
   curs_set(1);
   mvprintw(LINES - 2, 1, "%s", label);
-  clrtoeol();
-  move(LINES - 2, (int)strlen(label) + 1);
-  if (getnstr(buf, (int)len - 1) == ERR) {
-    noecho();
-    curs_set(0);
-    return -1;
+  if (original[0]) {
+    printw("[%s] ", original);
   }
+  clrtoeol();
+  label_col = (int)strlen(label) + 1;
+  if (original[0]) {
+    label_col += (int)strlen(original) + 3;
+  }
+  move(LINES - 2, label_col);
+
+  rc = getnstr(input, (int)len - 1);
+  if (rc != ERR) {
+    if (input[0]) {
+      snprintf(buf, len, "%s", input);
+    } else if (original[0]) {
+      snprintf(buf, len, "%s", original);
+    } else {
+      rc = ERR;
+    }
+  }
+
   noecho();
   curs_set(0);
-  return buf[0] ? 0 : -1;
+  nodelay(stdscr, TRUE);
+
+  free(input);
+  free(original);
+  return rc == ERR ? -1 : 0;
 }
 
 static void upload_selected(struct AppState *app) {
@@ -703,9 +737,18 @@ static void process_commander_key(struct AppState *app, int ch) {
     case '\n':
     case KEY_ENTER:
       if (app->focus == FOCUS_LOCAL) {
-        local_panel_enter(app);
+        if (local->count > 0 && !local->entries[local->selected].is_dir) {
+          upload_selected(app);
+        } else {
+          local_panel_enter(app);
+        }
       } else {
-        remote_panel_enter(app);
+        if (remote->loaded && remote->count > 0 &&
+            !remote->entries[remote->selected].is_dir) {
+          download_prompted(app);
+        } else {
+          remote_panel_enter(app);
+        }
       }
       break;
     case 'u':

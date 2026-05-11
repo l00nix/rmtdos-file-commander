@@ -61,9 +61,10 @@ sudo ./out/rmtdos-file-commander -i enp2s0 -e 80ab
 
 - `0`-`9`: select a DOS host from the startup selector.
 - `Tab`: switch between remote and local pane focus.
-- `Up` / `Down`: move selection in the local pane.
-- `Enter`: enter the selected directory in the focused pane.
-- `u`: upload the selected local file to the DOS current/planned directory.
+- `Up` / `Down`: move selection in the focused pane.
+- `Enter`: enter the selected directory, upload a selected local file, or
+  download a selected remote file.
+- `u`: upload the selected local file to the focused remote DOS directory.
 - `d`: download the selected or prompted DOS filename into the current local
   directory.
 - `r`: refresh the focused directory listing.
