@@ -558,7 +558,7 @@ static const char *editor_name(void) {
   if (!editor || !editor[0]) {
     editor = getenv("EDITOR");
   }
-  return editor && editor[0] ? editor : "vi";
+  return editor && editor[0] ? editor : "nano";
 }
 
 static int run_editor_shell(const char *path) {
@@ -853,6 +853,7 @@ static void open_remote_selected(struct AppState *app) {
   off_t before_size = 0;
   off_t after_size = 0;
   int rc = -1;
+  const char *result = "Remote edit failed.";
 
   if (!app->remote.loaded || app->remote.count <= 0) {
     set_status(app, "Remote directory is empty or not loaded.");
@@ -888,22 +889,44 @@ static void open_remote_selected(struct AppState *app) {
   endwin();
 
   printf("Downloading %s for edit...\n", remote_path);
-  if (!file_transfer_get(&app->sock, app->active_host->if_addr, remote_path,
-                         tmp_path) &&
-      !file_fingerprint(tmp_path, &before_hash, &before_size)) {
-    printf("\nOpening %s with %s...\n", tmp_path, editor_name());
-    if (!run_editor_shell(tmp_path) &&
-        !file_fingerprint(tmp_path, &after_hash, &after_size)) {
-      if ((before_hash != after_hash || before_size != after_size) &&
-          shell_prompt_yes_no("Upload modified file back to DOS?")) {
-        rc = file_transfer_put(&app->sock, app->active_host->if_addr, tmp_path,
-                               remote_path);
-      } else {
-        rc = 0;
-      }
-    }
+  if (file_transfer_get(&app->sock, app->active_host->if_addr, remote_path,
+                        tmp_path)) {
+    result = "Remote edit failed: download failed.";
+    goto done;
   }
 
+  if (file_fingerprint(tmp_path, &before_hash, &before_size)) {
+    result = "Remote edit failed: cannot read temp file.";
+    goto done;
+  }
+
+  printf("\nOpening %s with %s...\n", tmp_path, editor_name());
+  if (run_editor_shell(tmp_path)) {
+    result = "Remote edit failed: editor exited with an error.";
+    goto done;
+  }
+
+  if (file_fingerprint(tmp_path, &after_hash, &after_size)) {
+    result = "Remote edit failed: cannot re-read temp file.";
+    goto done;
+  }
+
+  if (before_hash != after_hash || before_size != after_size) {
+    if (shell_prompt_yes_no("Upload modified file back to DOS?")) {
+      rc = file_transfer_put(&app->sock, app->active_host->if_addr, tmp_path,
+                             remote_path);
+      result = rc ? "Remote edit failed: upload failed."
+                  : "Remote edit complete; changes uploaded.";
+    } else {
+      rc = 0;
+      result = "Remote edit complete; changes kept local only.";
+    }
+  } else {
+    rc = 0;
+    result = "Remote edit complete; file unchanged.";
+  }
+
+done:
   shell_transfer_pause();
   reset_prog_mode();
   ui_reset();
@@ -911,7 +934,7 @@ static void open_remote_selected(struct AppState *app) {
   if (!rc) {
     remote_panel_load(app);
   }
-  set_status(app, rc ? "Remote edit failed." : "Remote edit complete.");
+  set_status(app, "%s", result);
 }
 
 static void process_commander_key(struct AppState *app, int ch) {

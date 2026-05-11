@@ -63,7 +63,7 @@ sudo ./out/rmtdos-file-commander -i enp2s0 -e 80ab
 - `Tab`: switch between remote and local pane focus.
 - `Up` / `Down`: move selection in the focused pane.
 - `Enter`: enter the selected directory or open the selected file in
-  `$VISUAL`, `$EDITOR`, or `vi`.
+  `$VISUAL`, `$EDITOR`, or `nano`.
 - `u`: upload the selected local file to the focused remote DOS directory.
 - `d`: download the selected or prompted DOS filename into the current local
   directory.
