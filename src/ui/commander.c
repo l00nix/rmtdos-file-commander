@@ -18,6 +18,7 @@
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "common/protocol.h"
@@ -552,6 +553,102 @@ static void ui_reset(void) {
   refresh();
 }
 
+static const char *editor_name(void) {
+  const char *editor = getenv("VISUAL");
+  if (!editor || !editor[0]) {
+    editor = getenv("EDITOR");
+  }
+  return editor && editor[0] ? editor : "vi";
+}
+
+static int run_editor_shell(const char *path) {
+  const char *editor = editor_name();
+  pid_t pid = fork();
+  int status;
+
+  if (pid < 0) {
+    perror("fork");
+    return -1;
+  }
+
+  if (pid == 0) {
+    execlp(editor, editor, path, (char *)NULL);
+    perror(editor);
+    _exit(127);
+  }
+
+  if (waitpid(pid, &status, 0) < 0) {
+    perror("waitpid");
+    return -1;
+  }
+
+  return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : -1;
+}
+
+static int file_fingerprint(const char *path, unsigned long *hash,
+                            off_t *size) {
+  FILE *fp;
+  unsigned char buf[4096];
+  size_t n;
+  struct stat st;
+  unsigned long h = 5381;
+
+  if (stat(path, &st)) {
+    return -1;
+  }
+
+  fp = fopen(path, "rb");
+  if (!fp) {
+    return -1;
+  }
+
+  while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
+    size_t i;
+    for (i = 0; i < n; ++i) {
+      h = ((h << 5) + h) ^ buf[i];
+    }
+  }
+
+  if (ferror(fp)) {
+    fclose(fp);
+    return -1;
+  }
+
+  fclose(fp);
+  *hash = h;
+  *size = st.st_size;
+  return 0;
+}
+
+static int shell_prompt_yes_no(const char *prompt) {
+  int ch;
+
+  printf("%s [y/N] ", prompt);
+  fflush(stdout);
+  ch = getchar();
+  while (ch != '\n' && getchar() != '\n') {
+  }
+  return ch == 'y' || ch == 'Y';
+}
+
+static void safe_temp_name(char *dest, size_t dest_len, const char *name) {
+  size_t i;
+
+  for (i = 0; name[i] && i + 1 < dest_len; ++i) {
+    unsigned char ch = (unsigned char)name[i];
+    if (isalnum(ch) || ch == '.' || ch == '_' || ch == '-') {
+      dest[i] = name[i];
+    } else {
+      dest[i] = '_';
+    }
+  }
+  dest[i] = '\0';
+
+  if (!dest[0]) {
+    snprintf(dest, dest_len, "REMOTE.TXT");
+  }
+}
+
 static int prompt_text(const char *label, char *buf, size_t len) {
   char *input;
   char *original;
@@ -655,9 +752,23 @@ static void upload_selected(struct AppState *app) {
   set_status(app, rc ? "Upload failed." : "Upload complete.");
 }
 
+static int download_remote_file_to(struct AppState *app, const char *remote_name,
+                                   const char *local_path) {
+  char remote_path[FILE_TRANSFER_NAME_BYTES];
+
+  if (remote_path_join(remote_path, sizeof(remote_path), app->remote_path,
+                       remote_name)) {
+    set_status(app, "Remote transfer path must fit in %d characters.",
+               FILE_TRANSFER_NAME_BYTES - 1);
+    return -1;
+  }
+
+  return file_transfer_get(&app->sock, app->active_host->if_addr, remote_path,
+                           local_path);
+}
+
 static void download_prompted(struct AppState *app) {
   char remote_name[RMTDOS_PATH_BYTES];
-  char remote_path[FILE_TRANSFER_NAME_BYTES];
   char local_name[NAME_MAX + 1];
   char local_path[PATH_MAX];
   int rc;
@@ -685,17 +796,9 @@ static void download_prompted(struct AppState *app) {
     return;
   }
 
-  if (remote_path_join(remote_path, sizeof(remote_path), app->remote_path,
-                       remote_name)) {
-    set_status(app, "Remote transfer path must fit in %d characters.",
-               FILE_TRANSFER_NAME_BYTES - 1);
-    return;
-  }
-
   def_prog_mode();
   endwin();
-  rc = file_transfer_get(&app->sock, app->active_host->if_addr, remote_path,
-                         local_path);
+  rc = download_remote_file_to(app, remote_name, local_path);
   shell_transfer_pause();
   reset_prog_mode();
   ui_reset();
@@ -704,6 +807,111 @@ static void download_prompted(struct AppState *app) {
     local_panel_load(&app->local, app->local.cwd);
   }
   set_status(app, rc ? "Download failed." : "Download complete.");
+}
+
+static void open_local_selected(struct AppState *app) {
+  struct LocalEntry *entry;
+  char local_path[PATH_MAX];
+  char opened_name[NAME_MAX + 1];
+  int rc;
+
+  if (app->local.count <= 0) {
+    return;
+  }
+
+  entry = &app->local.entries[app->local.selected];
+  snprintf(opened_name, sizeof(opened_name), "%s", entry->name);
+  if (entry->is_dir) {
+    local_panel_enter(app);
+    return;
+  }
+
+  if (join_path(local_path, sizeof(local_path), app->local.cwd, entry->name)) {
+    set_status(app, "Local path is too long.");
+    return;
+  }
+
+  def_prog_mode();
+  endwin();
+  rc = run_editor_shell(local_path);
+  reset_prog_mode();
+  ui_reset();
+
+  local_panel_load(&app->local, app->local.cwd);
+  set_status(app, rc ? "Editor failed." : "Edited %s", opened_name);
+}
+
+static void open_remote_selected(struct AppState *app) {
+  struct RemoteDirEntry *entry;
+  char tmp_template[] = "/tmp/rmtdos-file-commander-XXXXXX";
+  char tmp_name[NAME_MAX + 1];
+  char tmp_path[PATH_MAX];
+  char remote_path[FILE_TRANSFER_NAME_BYTES];
+  char *tmp_dir;
+  unsigned long before_hash = 0;
+  unsigned long after_hash = 0;
+  off_t before_size = 0;
+  off_t after_size = 0;
+  int rc = -1;
+
+  if (!app->remote.loaded || app->remote.count <= 0) {
+    set_status(app, "Remote directory is empty or not loaded.");
+    return;
+  }
+
+  entry = &app->remote.entries[app->remote.selected];
+  if (entry->is_dir) {
+    remote_panel_enter(app);
+    return;
+  }
+
+  if (remote_path_join(remote_path, sizeof(remote_path), app->remote_path,
+                       entry->name)) {
+    set_status(app, "Remote transfer path must fit in %d characters.",
+               FILE_TRANSFER_NAME_BYTES - 1);
+    return;
+  }
+
+  tmp_dir = mkdtemp(tmp_template);
+  if (!tmp_dir) {
+    set_status(app, "Could not create temp directory: %s", strerror(errno));
+    return;
+  }
+
+  safe_temp_name(tmp_name, sizeof(tmp_name), entry->name);
+  if (join_path(tmp_path, sizeof(tmp_path), tmp_dir, tmp_name)) {
+    set_status(app, "Temp path is too long.");
+    return;
+  }
+
+  def_prog_mode();
+  endwin();
+
+  printf("Downloading %s for edit...\n", remote_path);
+  if (!file_transfer_get(&app->sock, app->active_host->if_addr, remote_path,
+                         tmp_path) &&
+      !file_fingerprint(tmp_path, &before_hash, &before_size)) {
+    printf("\nOpening %s with %s...\n", tmp_path, editor_name());
+    if (!run_editor_shell(tmp_path) &&
+        !file_fingerprint(tmp_path, &after_hash, &after_size)) {
+      if ((before_hash != after_hash || before_size != after_size) &&
+          shell_prompt_yes_no("Upload modified file back to DOS?")) {
+        rc = file_transfer_put(&app->sock, app->active_host->if_addr, tmp_path,
+                               remote_path);
+      } else {
+        rc = 0;
+      }
+    }
+  }
+
+  shell_transfer_pause();
+  reset_prog_mode();
+  ui_reset();
+
+  if (!rc) {
+    remote_panel_load(app);
+  }
+  set_status(app, rc ? "Remote edit failed." : "Remote edit complete.");
 }
 
 static void process_commander_key(struct AppState *app, int ch) {
@@ -737,23 +945,13 @@ static void process_commander_key(struct AppState *app, int ch) {
     case '\n':
     case KEY_ENTER:
       if (app->focus == FOCUS_LOCAL) {
-        if (local->count > 0 && !local->entries[local->selected].is_dir) {
-          upload_selected(app);
-        } else {
-          local_panel_enter(app);
-        }
+        open_local_selected(app);
       } else {
-        if (remote->loaded && remote->count > 0 &&
-            !remote->entries[remote->selected].is_dir) {
-          download_prompted(app);
-        } else {
-          remote_panel_enter(app);
-        }
+        open_remote_selected(app);
       }
       break;
     case 'u':
     case 'U':
-    case KEY_F(5):
       if (app->focus != FOCUS_LOCAL) {
         set_status(app, "Switch to the local pane to upload a selected file.");
       } else {
@@ -763,6 +961,13 @@ static void process_commander_key(struct AppState *app, int ch) {
     case 'd':
     case 'D':
       download_prompted(app);
+      break;
+    case KEY_F(5):
+      if (app->focus == FOCUS_LOCAL) {
+        upload_selected(app);
+      } else {
+        download_prompted(app);
+      }
       break;
     case 'r':
     case 'R':

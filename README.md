@@ -62,13 +62,18 @@ sudo ./out/rmtdos-file-commander -i enp2s0 -e 80ab
 - `0`-`9`: select a DOS host from the startup selector.
 - `Tab`: switch between remote and local pane focus.
 - `Up` / `Down`: move selection in the focused pane.
-- `Enter`: enter the selected directory, upload a selected local file, or
-  download a selected remote file.
+- `Enter`: enter the selected directory or open the selected file in
+  `$VISUAL`, `$EDITOR`, or `vi`.
 - `u`: upload the selected local file to the focused remote DOS directory.
 - `d`: download the selected or prompted DOS filename into the current local
   directory.
+- `F5`: copy in the focused direction: local to DOS, or DOS to local.
 - `r`: refresh the focused directory listing.
 - `q`, `Esc`, `Ctrl-]`: quit.
+
+Opening a remote DOS file downloads it to a temporary local path, starts the
+editor, then asks whether to upload the modified file back to DOS if the content
+changed.
 
 ## Relationship to rmtdos-cga-web
 
