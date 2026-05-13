@@ -4,6 +4,12 @@
 ncurses file manager for Linux machines talking to a DOS host running the
 `rmtdos-cga-web` TSR.
 
+The DOS-side TSR is built and released by the companion
+[`rmtdos-cga-web`](https://github.com/l00nix/rmtdos-cga-web) project. For full
+remote directory and file-operation support, use `cgaweb.com` from
+[`rmtdos-cga-web v0.5.1`](https://github.com/l00nix/rmtdos-cga-web/releases/tag/v0.5.1)
+or newer.
+
 It starts with the same rmtdos LAN host discovery flow as `rmtdos-cga-web-client`,
 then opens a dual-pane file commander with remote DOS on the left and local Linux
 on the right.
@@ -23,8 +29,7 @@ The current flow is:
    and download files through the rmtdos-cga-web protocol.
 
 Remote directory browsing requires a `cgaweb.com` build that includes the
-file-manager protocol extensions. Use `cgaweb.com` from `rmtdos-cga-web v0.5.1`
-or newer for the full remote operation set.
+file-manager protocol extensions.
 
 ## Current Status
 
@@ -109,8 +114,8 @@ printed before returning to the commander UI.
 
 This is a new standalone project, not a fork. It reuses the Linux-side raw
 Ethernet, host discovery, and file-transfer protocol ideas from
-`rmtdos-cga-web`, and is licensed GPL-2.0-or-later to remain compatible with
-that foundation.
+[`rmtdos-cga-web`](https://github.com/l00nix/rmtdos-cga-web), and is licensed
+GPL-2.0-or-later to remain compatible with that foundation.
 
 See [docs/protocol-roadmap.md](docs/protocol-roadmap.md) for the proposed next
 TSR protocol features.
