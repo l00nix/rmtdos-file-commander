@@ -4,18 +4,27 @@
 ncurses file manager for Linux machines talking to a DOS host running the
 `rmtdos-cga-web` TSR.
 
-The first build is intentionally small and protocol-aware:
+It starts with the same rmtdos LAN host discovery flow as `rmtdos-cga-web-client`,
+then opens a dual-pane file commander with remote DOS on the left and local Linux
+on the right.
+
+![rmtdos LAN server selector](images/rmtdos-file-commander-session-menu.png)
+
+![rmtdos-file-commander dual-pane file manager](images/rmtdos-file-commander.png)
+
+The current flow is:
 
 1. Probe the LAN for rmtdos servers.
 2. Select a DOS machine.
 3. Open a dual-pane commander UI.
 4. Treat the left pane as the remote DOS side.
 5. Treat the right pane as the local Linux side.
-6. Copy files with the existing rmtdos-cga-web `--put` and `--get` packet flow.
+6. Browse, copy, move, rename, create directories, delete, view, edit, upload,
+   and download files through the rmtdos-cga-web protocol.
 
 Remote directory browsing requires a `cgaweb.com` build that includes the
-`V1_DIR_LIST_*` protocol extension. Older TSR builds still work for prompted
-single-file transfers, but the remote pane cannot list directories.
+file-manager protocol extensions. Use `cgaweb.com` from `rmtdos-cga-web v0.5.1`
+or newer for the full remote operation set.
 
 ## Current Status
 
@@ -57,6 +66,12 @@ Optional EtherType override:
 
 ```sh
 sudo ./out/rmtdos-file-commander -i enp2s0 -e 80ab
+```
+
+Show the build version:
+
+```sh
+./out/rmtdos-file-commander -v
 ```
 
 ## Keys
