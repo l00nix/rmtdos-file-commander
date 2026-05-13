@@ -28,7 +28,9 @@ single-file transfers, but the remote pane cannot list directories.
 - Remote DOS directory listing: implemented with the matching updated
   `cgaweb.com` TSR.
 - Remote chdir/path handling: implemented client-side for directory browsing.
-- Remote mkdir/delete/rename: documented future work.
+- Local copy, rename/move, mkdir, and delete: implemented.
+- Remote copy, rename/move, mkdir, and delete: implemented with the matching
+  updated `cgaweb.com` TSR.
 
 ## Build
 
@@ -62,18 +64,31 @@ sudo ./out/rmtdos-file-commander -i enp2s0 -e 80ab
 - `0`-`9`: select a DOS host from the startup selector.
 - `Tab`: switch between remote and local pane focus.
 - `Up` / `Down`: move selection in the focused pane.
-- `Enter`: enter the selected directory or open the selected file in
-  `$VISUAL`, `$EDITOR`, or `nano`.
+- `Enter`: enter the selected directory or view the selected file.
+- `F2`: upload the selected local file to the focused remote DOS directory.
+- `v` / `F3`: view the selected local or remote file.
+- `e` / `F4`: edit the selected local or remote file.
+- `c` / `F5`: copy the selected file on the focused system. Local copy is
+  implemented; remote copy requires the matching updated TSR.
+- `n` / `F6`: rename/move the selected file or directory.
+- `m` / `F7`: create a directory.
+- `x` / `F8`: delete the selected file or empty directory after confirmation.
+- `F9`: download the selected or prompted DOS filename into the current local
+  directory.
 - `u`: upload the selected local file to the focused remote DOS directory.
 - `d`: download the selected or prompted DOS filename into the current local
   directory.
-- `F5`: copy in the focused direction: local to DOS, or DOS to local.
 - `r`: refresh the focused directory listing.
-- `q`, `Esc`, `Ctrl-]`: quit.
+- `F10`, `q`, `Esc`, `Ctrl-]`: quit.
 
-Opening a remote DOS file downloads it to a temporary local path, starts the
-editor, then asks whether to upload the modified file back to DOS if the content
-changed.
+Remote copy, rename/move, mkdir, and delete require a `cgaweb.com` build with
+the matching file-operation protocol extension.
+
+Viewing or editing a remote DOS file downloads it to a temporary local path.
+Editing starts `$VISUAL`, `$EDITOR`, or `nano`, then asks whether to upload the
+modified file back to DOS if the content changed. If you keep changes local only,
+or if uploading fails, the temporary edited copy is preserved and its path is
+printed before returning to the commander UI.
 
 ## Relationship to rmtdos-cga-web
 

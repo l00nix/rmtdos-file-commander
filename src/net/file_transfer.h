@@ -14,6 +14,13 @@ int file_transfer_put(struct RawSocket *sock, const uint8_t *dest_mac_addr,
                       const char *local_path, const char *remote_path);
 int file_transfer_get(struct RawSocket *sock, const uint8_t *dest_mac_addr,
                       const char *remote_path, const char *local_path);
+int file_remote_mkdir(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                      const char *remote_path);
+int file_remote_delete(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                       const char *remote_path, int is_dir);
+int file_remote_rename(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                       const char *source_path, const char *target_path);
+int file_remote_copy(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                     const char *source_path, const char *target_path);
 
 #endif
-

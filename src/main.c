@@ -13,13 +13,14 @@
 #include "ui/commander.h"
 
 static void usage(FILE *out, const char *argv0) {
-  fprintf(out, "Usage: %s -i IFACE [-e ETHERTYPE]\n", argv0);
+  fprintf(out, "Usage: %s -i IFACE [-e ETHERTYPE] [-v]\n", argv0);
   fprintf(out, "\n");
   fprintf(out, "Options:\n");
   fprintf(out, "  -i IFACE      Linux network interface, e.g. enp2s0\n");
   fprintf(out, "  -e ETHERTYPE  Hex EtherType, default %04x\n",
           RMTDOS_DEFAULT_ETHERTYPE);
   fprintf(out, "  -h            Show this help\n");
+  fprintf(out, "  -v            Show version and exit\n");
 }
 
 static int parse_ethertype(const char *text, uint16_t *out) {
@@ -43,7 +44,7 @@ int main(int argc, char **argv) {
   };
   int opt;
 
-  while ((opt = getopt(argc, argv, "hi:e:")) != -1) {
+  while ((opt = getopt(argc, argv, "hi:e:v")) != -1) {
     switch (opt) {
       case 'i':
         config.if_name = optarg;
@@ -56,6 +57,9 @@ int main(int argc, char **argv) {
         break;
       case 'h':
         usage(stdout, argv[0]);
+        return 0;
+      case 'v':
+        puts(RMTDOS_FC_VERSION);
         return 0;
       default:
         usage(stderr, argv[0]);
@@ -70,4 +74,3 @@ int main(int argc, char **argv) {
 
   return commander_run(&config);
 }
-

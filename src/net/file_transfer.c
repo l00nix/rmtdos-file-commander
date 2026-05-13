@@ -382,3 +382,80 @@ int file_transfer_get(struct RawSocket *sock, const uint8_t *dest_mac_addr,
   return 0;
 }
 
+static int send_path_op(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                        enum PKT_TYPE pkt_type, uint16_t ack_command,
+                        const char *remote_path, uint16_t flags) {
+  struct FilePathOp op;
+  uint32_t ack_offset = 0;
+  uint32_t transfer_id = make_transfer_id(sock, 0x4f505031 ^ pkt_type);
+
+  if (validate_remote_name(remote_path)) {
+    return -1;
+  }
+
+  memset(&op, 0, sizeof(op));
+  op.transfer_id = htonl(transfer_id);
+  op.flags = htons(flags);
+  snprintf(op.path, sizeof(op.path), "%s", remote_path);
+
+  if (send_with_ack(sock, dest_mac_addr, pkt_type, &op, sizeof(op),
+                    transfer_id, ack_command, &ack_offset)) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int send_two_path_op(struct RawSocket *sock,
+                            const uint8_t *dest_mac_addr,
+                            enum PKT_TYPE pkt_type, uint16_t ack_command,
+                            const char *source_path,
+                            const char *target_path) {
+  struct FileTwoPathOp op;
+  uint32_t ack_offset = 0;
+  uint32_t transfer_id = make_transfer_id(sock, 0x4f505032 ^ pkt_type);
+
+  if (validate_remote_name(source_path) || validate_remote_name(target_path)) {
+    return -1;
+  }
+
+  memset(&op, 0, sizeof(op));
+  op.transfer_id = htonl(transfer_id);
+  snprintf(op.source, sizeof(op.source), "%s", source_path);
+  snprintf(op.target, sizeof(op.target), "%s", target_path);
+
+  if (send_with_ack(sock, dest_mac_addr, pkt_type, &op, sizeof(op),
+                    transfer_id, ack_command, &ack_offset)) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int file_remote_mkdir(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                      const char *remote_path) {
+  printf("remote mkdir: %s\n", remote_path);
+  return send_path_op(sock, dest_mac_addr, V1_FILE_MKDIR, FILE_ACK_MKDIR,
+                      remote_path, FILE_PATH_OP_DIRECTORY);
+}
+
+int file_remote_delete(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                       const char *remote_path, int is_dir) {
+  printf("remote delete: %s\n", remote_path);
+  return send_path_op(sock, dest_mac_addr, V1_FILE_DELETE, FILE_ACK_DELETE,
+                      remote_path, is_dir ? FILE_PATH_OP_DIRECTORY : 0);
+}
+
+int file_remote_rename(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                       const char *source_path, const char *target_path) {
+  printf("remote rename: %s -> %s\n", source_path, target_path);
+  return send_two_path_op(sock, dest_mac_addr, V1_FILE_RENAME, FILE_ACK_RENAME,
+                          source_path, target_path);
+}
+
+int file_remote_copy(struct RawSocket *sock, const uint8_t *dest_mac_addr,
+                     const char *source_path, const char *target_path) {
+  printf("remote copy: %s -> %s\n", source_path, target_path);
+  return send_two_path_op(sock, dest_mac_addr, V1_FILE_COPY, FILE_ACK_COPY,
+                          source_path, target_path);
+}

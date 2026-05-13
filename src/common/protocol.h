@@ -11,7 +11,7 @@
 
 #include "common/ethernet.h"
 
-#define RMTDOS_FC_VERSION "rmtdos-file-commander v0.1.0"
+#define RMTDOS_FC_VERSION "rmtdos-file-commander v0.2.1"
 #define RMTDOS_DEFAULT_ETHERTYPE 0x80ab
 
 #define PACKET_SIGNATURE ((uint32_t)0x7b6e05b0)
@@ -40,7 +40,10 @@ enum PKT_TYPE {
   V1_DIR_LIST_DATA_REQ = 18,
   V1_DIR_LIST_DATA = 19,
   V1_DIR_LIST_END = 20,
-  V1_CHDIR = 21,
+  V1_FILE_MKDIR = 21,
+  V1_FILE_DELETE = 22,
+  V1_FILE_RENAME = 23,
+  V1_FILE_COPY = 24,
 };
 
 #pragma pack(push, 1)
@@ -81,6 +84,10 @@ enum FILE_ACK_COMMAND {
   FILE_ACK_BEGIN = 1,
   FILE_ACK_DATA = 2,
   FILE_ACK_END = 3,
+  FILE_ACK_MKDIR = 4,
+  FILE_ACK_DELETE = 5,
+  FILE_ACK_RENAME = 6,
+  FILE_ACK_COPY = 7,
 };
 
 enum FILE_ACK_STATUS {
@@ -135,6 +142,23 @@ struct FileAck {
   uint32_t offset;
 };
 
+enum FILE_PATH_OP_FLAGS {
+  FILE_PATH_OP_DIRECTORY = 0x0001,
+};
+
+struct FilePathOp {
+  uint32_t transfer_id;
+  uint16_t flags;
+  uint16_t reserved;
+  char path[FILE_TRANSFER_NAME_BYTES];
+};
+
+struct FileTwoPathOp {
+  uint32_t transfer_id;
+  char source[FILE_TRANSFER_NAME_BYTES];
+  char target[FILE_TRANSFER_NAME_BYTES];
+};
+
 #define RMTDOS_PATH_BYTES 128
 #define RMTDOS_DIR_ENTRY_NAME_BYTES 64
 
@@ -176,4 +200,3 @@ struct DirListEnd {
 #pragma pack(pop)
 
 #endif
-

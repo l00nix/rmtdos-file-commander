@@ -1,6 +1,6 @@
 out/
+out-aarch64/
 *.o
 *.a
 *.swp
 compile_commands.json
-
